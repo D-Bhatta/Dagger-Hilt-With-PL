@@ -9,6 +9,9 @@ Course URL: [Dagger-Hilt with PL](https://www.youtube.com/watch?v=ZE2Jkvnk2Bs)
 - [Notes: Dagger-Hilt with Phillip Lackner](#notes-dagger-hilt-with-phillip-lackner)
   - [Sections](#sections)
   - [Notes](#notes)
+  - [Setup](#setup)
+    - [Project level gradle file](#project-level-gradle-file)
+    - [App level build.gradle file](#app-level-buildgradle-file)
   - [Additional Information](#additional-information)
   - [Errors](#errors)
     - [Course](#course)
@@ -36,7 +39,7 @@ Course URL: [Dagger-Hilt with PL](https://www.youtube.com/watch?v=ZE2Jkvnk2Bs)
 
 ### App level build.gradle file
 
-- Add the `kotlin-kapt` or Kotlin Annotation Processing Tool plugin. It allows most Java annotations to work with kotlin easily. Know more at the [kapt reference](https://kotlinlang.org/docs/kapt.html#gradle-build-cache-support.
+- Add the `kotlin-kapt` or Kotlin Annotation Processing Tool plugin. It allows most Java annotations to work with kotlin easily. Know more at the [kapt reference](https://kotlinlang.org/docs/kapt.html#gradle-build-cache-support).
 - Add the `dagger.hilt.android.plugin` plugin to the app.
 
 ```gradle
