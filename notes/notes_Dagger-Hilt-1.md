@@ -12,6 +12,10 @@ Course URL: [Dagger-Hilt with PL](https://www.youtube.com/watch?v=ZE2Jkvnk2Bs)
   - [Setup](#setup)
     - [Project level gradle file](#project-level-gradle-file)
     - [App level build.gradle file](#app-level-buildgradle-file)
+  - [Creating the Application Class](#creating-the-application-class)
+  - [Create Modules](#create-modules)
+  - [Inject into components: Activity](#inject-into-components-activity)
+  - [Create MainModule for MainActivity scope](#create-mainmodule-for-mainactivity-scope)
   - [Additional Information](#additional-information)
   - [Errors](#errors)
     - [Course](#course)
@@ -111,7 +115,7 @@ class HiltTutorialWithPLApplication : Application()
 ## Create Modules
 
 - `AppModules` act as containers for the Application's dependencies, and live as long as the application does.
-- Modules inform Hilt how to provide instances of certain types. 
+- Modules inform Hilt how to provide instances of certain types.
 - They need an additional annotation `InstallIn` with the `Module` annotation.
 - The `InstallIn` annotation determines which Hilt components to install the module into.
 - Dependencies can be scoped, so in addition to `AppModule`, we can have `ActivityModule` or `FragmentModule` or other modules, which only live as long as the `Activity` or component does.
@@ -243,7 +247,183 @@ class MainActivity : AppCompatActivity() {
 
 ## Create MainModule for MainActivity scope
 
-- 
+- We create the `MainModule.kt` file to provide dependencies to the `MainActivity`.
+- We annotate it with `@Module` to show it is a module.
+- We annotate it with `@InstallIn(ActivityComponent:class)` to scope it to an `Activity`. It will have the same lifetime as the `Activity`.
+- We create a function `provideString1` and annotate it with `@ActivityScoped` to ensure that it will be injected only once and will live as long as the activity lives.
+- We annotate it with `@Provides` to bind it to the provider.
+- We annotate it with `@Named("MainActivity.string1")` to specify the dependency within a namespace.
+- To access resources from the Android app, such as `strings.xml` values, we need the context to provide it.
+- To provide the context, we pass the context as a parameter to the method, and we annotate the parameter using `@ApplicationContext`.
+- We could also scope the context to the activity using `@ActivityContext`.
+- We can also provide a dependency as parameter to the method, by using `@Named("name")` to get the dependency at `"name"`.
+- This way dagger will create the dependency passed as parameter first, before creating the other dependency.
+
+```kotlin
+// MainModule.kt
+package com.example.hilttutorialwithpl
+
+import android.content.Context
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ActivityComponent
+import dagger.hilt.android.qualifiers.ActivityContext
+import dagger.hilt.android.scopes.ActivityScoped
+import javax.inject.Named
+
+@Module
+@InstallIn(ActivityComponent::class)
+object MainModule {
+
+  @ActivityScoped
+  @Provides
+  @Named("MainActivity.string1")
+  fun provideString1(
+    @ActivityContext context: Context,
+    @Named("FirstNamedTestString") stringFromAppModule: String
+  ) =
+    "${context.getString(R.string.injected_string)} - $stringFromAppModule"
+}
+```
+
+```kotlin
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity() {
+
+  @Inject
+  @Named("FirstNamedTestString")
+  lateinit var stringFromModule: String
+
+  @Inject
+  @Named("MainActivity.string1")
+  lateinit var stringFromMainModule: String
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_main)
+
+    Log.d("MainActivity", "onCreate: Injected string: $stringFromModule")
+    Log.d("MainActivity", "onCreate: Injected string: $stringFromMainModule")
+  }
+}
+```
+
+- We get a log output showing the named string we injected.
+  ![Log output of injection](./static/img/log-output-injection-3.png)
+  
+## Injecting into ViewModels
+
+- For viewmodels we need to inject the dependencies into the constructor, just like a composition model.
+- Generally we would use a viewmodel factory with only dagger, but hilt does that for us.
+- We annotate a `ViewModel` with `@HiltViewModel` and annotate it's constructor with `@@Inject`.
+- Then we add the dependencies in the constructor itself.
+- The `ViewModel` constructor cannot be injected with dependencies scoped to an activity, only dependencies that are scoped to an `ViewModelScoped` module or an application module.
+- The dependencies in the `ViewModelModule` cannot be injected with context from an `ActivityContext`, but need an `ApplicationContext`.
+
+```kotlin
+// TestViewModelModule.kt
+package com.example.hilttutorialwithpl
+
+import android.content.Context
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ViewModelComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.android.scopes.ViewModelScoped
+import javax.inject.Named
+
+@Module
+@InstallIn(ViewModelComponent::class)
+object TestViewModelModule {
+
+    @ViewModelScoped
+    @Provides
+    @Named("TestViewModel.string1")
+    fun providesString1(
+        @ApplicationContext context: Context,
+        @Named("FirstNamedTestString") stringFromAppModule: String
+    ) = "${context.getString(R.string.view_model_string)} - $stringFromAppModule"
+}
+```
+
+```kotlin
+// TestViewModel.kt
+package com.example.hilttutorialwithpl
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import javax.inject.Named
+
+@HiltViewModel
+class TestViewModel @Inject constructor(
+  @Named("SecondNamedTestString") testString: String,
+  @Named("TestViewModel.string1") testString2: String
+) : ViewModel() {
+  init {
+    Log.d("TestViewModel", "init: Message in the string: $testString ")
+    Log.d("TestViewModel", "init: Message in the string: $testString2 ")
+  }
+}
+```
+
+```kotlin
+package com.example.hilttutorialwithpl
+
+import android.os.Bundle
+import android.util.Log
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import javax.inject.Named
+
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity() {
+
+    @Inject
+    @Named("FirstNamedTestString")
+    lateinit var stringFromModule: String
+
+    @Inject
+    @Named("MainActivity.string1")
+    lateinit var stringFromMainModule: String
+
+    private val viewModel: TestViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        Log.d("MainActivity", "onCreate: Injected string: $stringFromModule")
+        Log.d("MainActivity", "onCreate: Injected string: $stringFromMainModule")
+
+        viewModel
+    }
+}
+```
+
+## Final `strings.xml`
+
+```xml
+<resources>
+    <string name="app_name">HiltTutorialWithPL</string>
+
+    <!-- Start: MainActivity  -->
+    <string name="injected_string">This string has been injected into the MainActivity from the
+        MainModule</string>
+    <!-- End: MainActivity   -->
+    
+    <!-- Start: TestViewModel   -->
+    <string name="view_model_string">This string has been injected into the TestViewModel from the
+        TestViewModelModule</string>
+    <!-- End: TestViewModel   -->
+    
+</resources>
+```
 
 ## Additional Information
 
@@ -267,7 +447,9 @@ class MainActivity : AppCompatActivity() {
 - Dagger Docs: [Hilt Application](https://dagger.dev/hilt/application.html)
 - Howtodoandroid: [Dependency injection on Android with Hilt](https://howtodoandroid.com/android-hilt-dependency-injection/)
 - Dagger Docs: [Modules](https://dagger.dev/hilt/modules.html)
-- StackOverFlow: [Is ApplicationComponent deprecated?](https://stackoverflow.com/questions/65266636/is-applicationcomponent-deprecated) 
+- StackOverFlow: [Is ApplicationComponent deprecated?](https://stackoverflow.com/questions/65266636/is-applicationcomponent-deprecated)
+- Medium: [Dependency injection with Dagger 2: @Inject and @Provides](https://medium.com/@yostane/dependency-injection-with-dagger-2-inject-and-provides-ce21f7449ec5)
+- StackOverFlow: [Android Dagger 2: Inject versus Provides](https://stackoverflow.com/questions/39207845/android-dagger-2-inject-versus-provides)
 
 ## Notes template
 

@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">HiltTutorialWithPL</string>
+
+    <!-- Start: MainActivity  -->
+    <string name="injected_string">This string has been injected into the MainActivity from the
+        MainModule</string>
+    <!-- End: MainActivity   -->
+
+    <!-- Start: TestViewModel   -->
+    <string name="view_model_string">This string has been injected into the TestViewModel from the
+        TestViewModelModule</string>
+    <!-- End: TestViewModel   -->
+
 </resources>
